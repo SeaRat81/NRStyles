@@ -36,17 +36,19 @@ assert.equal((await request('items/purchase',{id:item,purchased:true},client2.co
 assert.equal((await request('items/purchase',{id:item,purchased:'yes'},client1.cookie)).status,400);
 ok(await request('items/purchase',{id:item,purchased:true},client1.cookie));
 let purchasedState=ok(await request('state',undefined,admin)).data;
-assert.equal(purchasedState.items[0].purchased,true);assert.ok(purchasedState.items[0].purchasedAt);assert.equal(purchasedState.wardrobe.length,0,'Ordered items must not enter wardrobe before kept confirmation');
+assert.equal(purchasedState.items[0].purchased,true);assert.ok(purchasedState.items[0].purchasedAt);assert.equal(purchasedState.wardrobe.length,1,'Purchased items enter wardrobe immediately');const purchasedWardrobeId=purchasedState.wardrobe[0].id;
+ok(await request('items/purchase',{id:item,purchased:true},client1.cookie));let repeatedPurchase=ok(await request('state',undefined,client1.cookie)).data;assert.equal(repeatedPurchase.wardrobe.length,1);assert.equal(repeatedPurchase.wardrobe[0].id,purchasedWardrobeId);
 const freshLogin=ok(await request('auth/login',{email:'client-one@example.test',password}));assert.equal(ok(await request('state',undefined,freshLogin.cookie)).data.items[0].purchased,true,'Purchase progress must survive a fresh login');
-ok(await request('items/purchase',{id:item,purchased:false},client1.cookie));assert.equal(ok(await request('state',undefined,client1.cookie)).data.items[0].purchased,false);
+ok(await request('items/purchase',{id:item,purchased:false},client1.cookie));assert.equal(ok(await request('state',undefined,client1.cookie)).data.items[0].purchased,false);assert.equal(ok(await request('state',undefined,client1.cookie)).data.wardrobe.filter(w=>!w.removed).length,0);
 ok(await request('items/purchase',{id:item,purchased:true},client1.cookie));
+const restored=ok(await request('state',undefined,client1.cookie)).data.wardrobe;assert.equal(restored.length,1);assert.equal(restored[0].id,purchasedWardrobeId);assert.equal(restored[0].removed,false);
 assert.equal(ok(await request('state',undefined,admin)).data.items[0].choice,'now');assert.equal(ok(await request('state',undefined,admin)).data.items[0].price,138.5);
 assert.equal((await request('items/save',{sessionId:session,name:'Missing price',price:'',url:'https://www.jcrew.com/p/CX424'},admin)).status,400);
 assert.equal((await request('sessions/complete',{id:session,outcomes:{}},client1.cookie)).status,400);
 ok(await request('sessions/complete',{id:session,outcomes:{[item]:'kept'}},client1.cookie));
 ok(await request('sessions/complete',{id:session,outcomes:{[item]:'kept'}},client1.cookie));
 assert.equal((await request('items/purchase',{id:item,purchased:false},client1.cookie)).status,400);
-let state=ok(await request('state',undefined,client1.cookie)).data;assert.equal(state.wardrobe.length,1,'Completion must be idempotent');
+let state=ok(await request('state',undefined,client1.cookie)).data;assert.equal(state.wardrobe.length,1,'Completion must be idempotent');assert.equal(state.wardrobe[0].id,purchasedWardrobeId);assert.equal(state.wardrobe[0].outcome,'kept');
 assert.equal(state.sessions[0].status,'completed');assert.equal(state.wardrobe[0].origin,'recommendation');
 assert.equal((await request('items/save',{id:item,sessionId:session,name:'Change',price:1,url:'https://www.jcrew.com/p/CX424'},admin)).status,400);
 ok(await request('wardrobe/save',{clientId:id1,name:'Existing shirt',category:'Tops & Shirts'},admin));
@@ -74,5 +76,15 @@ const upload=await fetch(base+'/api/nr/upload?clientId='+id1,{method:'POST',head
 ok(await request('wardrobe/save',{clientId:id1,name:'Photo item',category:'Other',assetKey:uploaded.assetKey},admin));
 const photo=await fetch(base+'/api/nr/photo?key='+encodeURIComponent(uploaded.assetKey),{headers:{Cookie:client1.cookie}});assert.equal(photo.status,200);
 const blocked=await fetch(base+'/api/nr/photo?key='+encodeURIComponent(uploaded.assetKey),{headers:{Cookie:client2.cookie}});assert.equal(blocked.status,403);
+for(const outcome of ['returned','not-purchased']){
+const followup=ok(await request('sessions/save',{clientId:id1,title:'Outcome '+outcome},admin)).data.id;
+const followupItem=ok(await request('items/save',{sessionId:followup,name:'Followup item',price:20,url:'https://www.jcrew.com/p/TEST'},admin)).data.id;
+ok(await request('sessions/share',{id:followup},admin));
+ok(await request('items/choice',{id:followupItem,choice:'now'},client1.cookie));
+ok(await request('items/purchase',{id:followupItem,purchased:true},client1.cookie));
+assert.ok(ok(await request('state',undefined,client1.cookie)).data.wardrobe.some(w=>w.recommendationId===followupItem));
+ok(await request('sessions/complete',{id:followup,outcomes:{[followupItem]:outcome}},client1.cookie));
+assert.ok(!ok(await request('state',undefined,client1.cookie)).data.wardrobe.some(w=>w.recommendationId===followupItem));
+}
 const queue=ok(await request('email/status',undefined,admin)).data;assert.ok(queue.emails.length>=6);assert.equal(queue.configured,false);assert.ok(queue.emails.every(e=>e.status==='pending'));
 console.log('PASS: invitations, login, roles, draft privacy, cross-client isolation, recommendations, completion, wardrobe, messages, product import, CSRF, photo access, and queued email.');
