@@ -9,13 +9,15 @@ export async function importProduct(s:string){
  const u=new URL(original);
  let html='';
  let fetchFailed=false;
+ let readStatus:number|null=null;
  const supported=hosts.includes(u.hostname)&&!u.port;
  if(supported){
   try{
    for(let step=0;step<4;step++){
     const response=await fetch(u.toString(),{redirect:'manual',headers:{'User-Agent':'Mozilla/5.0','Accept':'text/html'},signal:AbortSignal.timeout(15000)});
     if(response.status>=300&&response.status<400){const next=new URL(response.headers.get('location')||'',u);if(next.protocol!=='https:'||!hosts.includes(next.hostname)||next.port)break;u.href=next.href;continue}
-    if(!response.ok)break;
+    readStatus=response.status;
+    if(!response.ok){fetchFailed=true;break;}
     if(Number(response.headers.get('content-length')||0)>6000000)break;
     const reader=response.body?.getReader();if(!reader)break;
     const chunks:Uint8Array[]=[];let count=0;
@@ -27,12 +29,14 @@ export async function importProduct(s:string){
  let item=parseProduct(html,original.toString());
  if(supported&&(!item.name||!item.image||item.price===null)&&config('SCRAPINGBEE_API_KEY')){
   try{
-   const endpoint=new URL('https://app.scrapingbee.com/api/v1/');endpoint.searchParams.set('api_key',config('SCRAPINGBEE_API_KEY'));endpoint.searchParams.set('url',original.toString());endpoint.searchParams.set('render_js','true');
+   const endpoint=new URL('https://app.scrapingbee.com/api/v1/');endpoint.searchParams.set('api_key',config('SCRAPINGBEE_API_KEY'));endpoint.searchParams.set('url',original.toString());endpoint.searchParams.set('render_js','true');endpoint.searchParams.set('wait_browser','networkidle2');endpoint.searchParams.set('wait_for','h1');endpoint.searchParams.set('wait','2000');
    const rendered=await fetch(endpoint,{signal:AbortSignal.timeout(45000)});
    if(rendered.ok)item={...item,...mergeProductDetails(item,parseProduct((await rendered.text()).slice(0,6000000),original.toString()))};
   }catch{fetchFailed=true}
  }
  const complete=!!(item.name&&item.image&&item.price!==null);
- const warning=complete?'':!supported?'Automatic import is not available for this retailer. You can enter the product details below.':fetchFailed?'The retailer could not be fully read. Any available details have been kept; enter the rest below.':'Some product details could not be imported. Enter the missing name or price below; the image and other details are optional.';
+ const rendererConfigured=!!config('SCRAPINGBEE_API_KEY');
+ const blocked=readStatus===403||readStatus===429||/access denied|captcha|verify you are human|robot check/i.test(html.slice(0,100000));
+ const warning=complete?'':!supported?'Automatic import is not available for this retailer. You can enter the product details below.':blocked?'The retailer blocked the automated page request. Available details have been kept; enter missing fields manually.':!rendererConfigured?'Only the initial page HTML could be read; browser-rendered importing is not configured yet. Available details have been kept; enter missing fields manually.':fetchFailed?'The retailer could not be fully read. Any available details have been kept; enter the rest below.':'Some product details could not be imported. Enter the missing name or price below; the image and other details are optional.';
  return {item,complete,warning};
 }
