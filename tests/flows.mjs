@@ -16,7 +16,7 @@ const client1=await accept(invite1);const client2=await accept(invite2);const id
 assert.equal((await request('auth/accept',{token:new URL(invite1.data.invitationUrl).searchParams.get('invite'),name:'Again',password})).status,400);
 const session=ok(await request('sessions/save',{clientId:id1,title:'Fall styling',description:'Test session'},admin)).data.id;
 assert.equal(ok(await request('state',undefined,client1.cookie)).data.sessions.length,0,'Draft should be private');
-const item=ok(await request('items/save',{sessionId:session,name:'Test Jeans',brand:'Mavi',price:138,url:'https://www.nordstrom.com/s/6518494?color=444449WGUJ',category:'Jeans',size:'32 × 30',color:'Mid Foggy',image:''},admin)).data.id;
+const item=ok(await request('items/save',{sessionId:session,name:'Test Jeans',brand:'Mavi',price:138.50,url:'https://www.nordstrom.com/s/6518494?color=444449WGUJ',category:'Jeans',size:'32 × 30',color:'Mid Foggy',image:''},admin)).data.id;
 assert.equal((await request('sessions/share',{id:session},client1.cookie)).status,403);
 ok(await request('sessions/share',{id:session},admin));
 assert.equal(ok(await request('state',undefined,client1.cookie)).data.sessions.length,1);
@@ -24,7 +24,8 @@ assert.equal(ok(await request('state',undefined,client2.cookie)).data.sessions.l
 assert.equal((await request('items/choice',{id:item,choice:'now'},client2.cookie)).status,403);
 assert.equal((await request('profile/save',{id:id1,name:'Intruder',profile:{}},client2.cookie)).status,403);
 ok(await request('items/choice',{id:item,choice:'now'},client1.cookie));
-assert.equal(ok(await request('state',undefined,admin)).data.items[0].choice,'now');
+assert.equal(ok(await request('state',undefined,admin)).data.items[0].choice,'now');assert.equal(ok(await request('state',undefined,admin)).data.items[0].price,138.5);
+assert.equal((await request('items/save',{sessionId:session,name:'Missing price',price:'',url:'https://www.jcrew.com/p/CX424'},admin)).status,400);
 assert.equal((await request('sessions/complete',{id:session,outcomes:{}},client1.cookie)).status,400);
 ok(await request('sessions/complete',{id:session,outcomes:{[item]:'kept'}},client1.cookie));
 ok(await request('sessions/complete',{id:session,outcomes:{[item]:'kept'}},client1.cookie));
@@ -48,6 +49,7 @@ assert.equal((await request('clients/invite',{name:'Bad',email:'bad@example.test
 ok(await request('admins/deactivate',{id:adminInvite.data.clientId},admin));
 assert.equal((await request('state',undefined,secondary.cookie)).status,401);
 assert.equal((await request('items/import',{url:'https://127.0.0.1/private'},admin)).status,400);
+const unsupported=ok(await request('items/import',{url:'https://www.example.com/product'},admin));assert.equal(unsupported.data.complete,false);assert.ok(unsupported.data.warning);
 const imported=ok(await request('items/import',{url:'https://www.jcrew.com/p/CX424?color_name=faded-lilac'},admin));if(imported.data.complete){assert.equal(imported.data.item.name,'Cable-knit sweater-polo in vintage wool');assert.equal(imported.data.item.price,148);}else{assert.ok(imported.data.warning,'Blocked retailer must show a recoverable warning');console.log('Retailer runtime fetch requires rendering service; manual fallback verified.');}
 const noOrigin=await fetch(base+'/api/nr/messages/send',{method:'POST',headers:{'Content-Type':'application/json',Cookie:admin},body:JSON.stringify({clientId:id1,body:'blocked'})});assert.equal(noOrigin.status,403);
 const png=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aNOsAAAAASUVORK5CYII=','base64');

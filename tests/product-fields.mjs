@@ -1,0 +1,14 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import ts from 'typescript';
+const code=ts.transpileModule(fs.readFileSync('lib/nr/product-fields.ts','utf8'),{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
+const {mergeProductDetails}=await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
+const manual={id:'existing',url:'https://www.nordstrom.com/s/6518494',name:'My preferred product name',price:'138.50',size:'32 × 30',category:'Jeans',notes:'Keep these notes',color:'Mid Foggy',image:''};
+const merged=mergeProductDetails(manual,{name:'',price:null,color:'',image:'https://n.nordstrommedia.com/product.jpeg',category:'Other',brand:'Mavi'});
+assert.equal(merged.name,manual.name);assert.equal(merged.price,'138.50');assert.equal(merged.color,'Mid Foggy');assert.equal(merged.notes,manual.notes);assert.equal(merged.size,manual.size);assert.equal(merged.category,'Jeans');assert.equal(merged.image,'https://n.nordstrommedia.com/product.jpeg');assert.equal(merged.brand,'Mavi');
+const partial=mergeProductDetails({url:'https://www.jcrew.com/p/CX424',category:'Other',price:''},{name:'Cable-knit sweater',price:null,image:'',category:'Sweaters & Knitwear'});assert.equal(partial.name,'Cable-knit sweater');assert.equal(partial.price,'');assert.equal(partial.category,'Sweaters & Knitwear');
+assert.equal(mergeProductDetails({price:''},{price:138.50}).price,138.50);
+assert.equal(mergeProductDetails({price:0},{price:138}).price,0);
+assert.equal(mergeProductDetails({},{image:'data:text/html,unsafe'}).image,undefined);
+assert.equal(mergeProductDetails(manual,{}).name,manual.name);
+console.log('PASS: partial imports preserve manual entries, fill available fields, support decimal prices, and ignore unusable images.');
