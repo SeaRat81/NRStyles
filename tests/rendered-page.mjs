@@ -15,4 +15,5 @@ assert.equal(html,'<h1>Rendered product</h1>');assert.equal(calls,1);
 await assert.rejects(()=>cloudflarePage('https://www.jcrew.com',account,'test-secret',async()=>new Response('',{status:429})),/usage or request limit/);
 await assert.rejects(()=>cloudflarePage('https://www.jcrew.com',account,'test-secret',async()=>Response.json({success:true,result:'Access denied',meta:{status:403}})),/retailer blocked/);
 await assert.rejects(()=>cloudflarePage('https://www.jcrew.com','invalid','test-secret',async()=>{throw Error('must not request')}),/account ID/);
+await assert.rejects(()=>cloudflarePage('https://www.nordstrom.com',account,'test-secret',async()=>Response.json({success:true,result:"<h1>We've noticed some unusual activity</h1>",meta:{status:200}})),/security check/);
 console.log('PASS: browser rendering waits for JavaScript, keeps token server-side, and handles limits and blocked pages.');

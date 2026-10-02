@@ -12,5 +12,6 @@ export async function cloudflarePage(url:string,accountId:string,token:string,re
  const data:any=await response.json();
  if(!data.success||typeof data.result!=='string')throw Error('Cloudflare could not render this product page. Enter missing details manually.');
  if(data.meta?.status>=400)throw Error('The retailer blocked or could not serve the browser request. Enter missing details manually.');
+ if(/we['’]ve noticed some unusual activity|access denied|verify you are human|robot check/i.test(data.result))throw Error('The retailer presented a security check instead of the product page. Enter missing details manually.');
  return data.result.slice(0,6000000);
 }
