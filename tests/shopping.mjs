@@ -1,0 +1,5 @@
+import assert from 'node:assert/strict';import fs from 'node:fs';import ts from 'typescript';
+const source=fs.readFileSync('lib/nr/shopping.ts','utf8');const code=ts.transpileModule(source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;const {shoppingGroups}=await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
+const groups=shoppingGroups([{id:'1',url:'https://www.nordstrom.com/s/1',choice:'now',brand:'Mavi'},{id:'2',url:'https://nordstrom.com/s/2',choice:'now',brand:'Nike',purchased:true},{id:'3',url:'https://www.jcrew.com/p/3',choice:'now'},{id:'4',url:'https://www.jcrew.com/p/4',choice:'later'},{id:'5',url:'https://www.jcrew.com/p/5',choice:'now',removed:true}]);
+assert.equal(groups.length,2);assert.equal(groups[0].name,'Nordstrom');assert.equal(groups[0].items.length,2);assert.equal(groups[1].name,'J.Crew');assert.equal(groups[1].items.length,1);
+console.log('PASS: shopping groups use retailer URLs, combine different brands, retain purchased items, and exclude later/removed recommendations.');
