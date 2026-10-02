@@ -45,3 +45,10 @@ button[data-slot="select-trigger"]{background:white;color:#5b6b7b;font-weight:40
 @media(max-width:520px){.shopping-item{grid-template-columns:65px minmax(0,1fr);gap:14px;padding:16px}.shopping-item img,.shopping-photo{width:65px;height:95px}.shopping-actions{align-items:stretch;flex-direction:column}.shopping-next button{width:100%}}
 
 .import-timing{border:1px solid #c5d7e6;border-radius:6px;padding:16px;background:#f4f8fc}.import-timing summary{cursor:pointer;font-weight:600;color:#315b7d}.import-timing table{width:100%;margin-top:12px;font-size:14px}.import-timing th{font-weight:500;text-align:left}.import-timing td{text-align:right;overflow-wrap:anywhere}.import-timing th,.import-timing td{padding:5px}.import-timing p{margin:8px 0;font-size:13px}
+
+.notifications-panel{display:flex;flex-direction:column;gap:20px;min-width:0}
+.notification-card{display:flex;flex-direction:column;align-items:flex-start;gap:12px;min-width:0;overflow-wrap:anywhere}
+.notification-card h3,.notification-card p{margin:0}
+.notification-card small{display:block;color:#66788b}
+.notification-card button{margin-top:4px;max-width:100%;white-space:normal}
+.notifications-read{align-self:flex-start;margin-top:4px}
