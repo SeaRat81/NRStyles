@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import ts from 'typescript';
+let source=fs.readFileSync('lib/nr/importer.ts','utf8');
+source=source.slice(source.indexOf('export function decode'),source.indexOf('export async function importProduct'));
+const code=ts.transpileModule('const text=(s,max=5000)=>String(s??\'\').trim().slice(0,max);\n'+source,{compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.ES2022}}).outputText;
+const {parseProduct}=await import('data:text/javascript;base64,'+Buffer.from(code).toString('base64'));
+const jcrew=`<script type="application/ld+json">${JSON.stringify({'@type':'Product',name:'Cable-knit sweater-polo in vintage wool',image:['https://www.jcrew.com/s7-img-facade/CX424_PR5252'],color:'FADED LILAC',brand:'J.Crew',offers:{price:148,priceCurrency:'USD'}})}</script>`;
+const p=parseProduct(jcrew,'https://www.jcrew.com/p/CX424?color_name=faded-lilac');assert.equal(p.name,'Cable-knit sweater-polo in vintage wool');assert.equal(p.price,148);assert.equal(p.color,'FADED LILAC');assert.ok(p.image.includes('CX424'));
+const nord=`<h1>Marcus Slim Fit Straight Leg Jeans</h1><span>Current Price $138.00</span><img alt="Marcus Slim Fit Straight Leg Jeans, Main, color, MID FOGGY" src="https://n.nordstrommedia.com/example.jpeg">`;
+const n=parseProduct(nord,'https://www.nordstrom.com/s/marcus-jeans/6518494');assert.equal(n.name,'Marcus Slim Fit Straight Leg Jeans');assert.equal(n.price,138);assert.equal(n.color,'MID FOGGY');assert.equal(n.image,'https://n.nordstrommedia.com/example.jpeg');
+const blocked=parseProduct('<html>Access denied</html>','https://www.nordstrom.com/s/6518494');assert.equal(blocked.name,'');assert.equal(blocked.price,null);
+const variants=`<script type="application/ld+json">${JSON.stringify([{'@type':'Product',name:'Wrong variant',color:'NAVY',offers:{price:10}},{'@type':'Product',name:'Correct variant',color:'FADED LILAC',offers:{price:148}}])}</script>`;
+assert.equal(parseProduct(variants,'https://www.jcrew.com/p/CX424?color_name=faded-lilac').name,'Correct variant');
+console.log('PASS: structured product extraction, selected variant, rendered Nordstrom fallback, and blocked-page handling.');

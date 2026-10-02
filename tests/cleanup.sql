@@ -1,0 +1,10 @@
+DELETE FROM notifications;
+DELETE FROM messages;
+DELETE FROM wardrobe;
+DELETE FROM recommendations;
+DELETE FROM styling_sessions;
+DELETE FROM tokens;
+DELETE FROM auth_sessions;
+DELETE FROM accounts;
+DELETE FROM outbox;
+DELETE FROM rate_limits;

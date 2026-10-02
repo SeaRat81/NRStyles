@@ -1,0 +1,1 @@
+declare namespace Cloudflare {interface Env {DB?:D1Database;BUCKET?:R2Bucket;MASTER_SETUP_TOKEN?:string;ADMIN_EMAIL?:string;RESEND_API_KEY?:string;EMAIL_FROM?:string;APP_ORIGIN?:string;SCRAPINGBEE_API_KEY?:string}}
