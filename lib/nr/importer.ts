@@ -1,6 +1,7 @@
 import {config,fail,productUrl,text} from './server';
 import {mergeProductDetails} from './product-fields';
 import {cloudflarePage} from './rendered-page';
+import {scrapingBeePage} from './scrapingbee-page';
 const hosts=['jcrew.com','www.jcrew.com','nordstrom.com','www.nordstrom.com'];
 export function decode(s:string){return s.replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/&#39;|&apos;/g,"'").replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&#(\d+);/g,(_,n)=>String.fromCharCode(Number(n)))}
 export function parseProduct(html:string,url:string){const list:any[]=[];const collect=(v:any)=>{if(Array.isArray(v))v.forEach(collect);else if(v&&typeof v==='object'){if([v['@type']].flat().some(t=>t==='Product'))list.push(v);if(v['@graph'])collect(v['@graph'])}};for(const m of html.matchAll(/<script\b[^>]*type\s*=\s*["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)){try{collect(JSON.parse(m[1]))}catch{try{collect(JSON.parse(decode(m[1])))}catch{}}}const u=new URL(url);const expected=u.searchParams.get('color_name')?.replace(/-/g,' ').toLowerCase();const p=list.find(p=>expected&&String(p.color).toLowerCase()===expected)||list[0]||{};const meta=(key:string)=>{for(const m of html.matchAll(/<meta\b[^>]*>/gi)){const tag=m[0];const name=tag.match(/(?:property|name)\s*=\s*["']([^"']+)["']/i)?.[1];if(name===key)return decode(tag.match(/content\s*=\s*["']([^"']*)["']/i)?.[1]||'')}return ''};const offer=Array.isArray(p.offers)?p.offers[0]:p.offers;const visibleText=decode(html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,'').replace(/<[^>]+>/g,' ')).replace(/\s+/g,' ');const visiblePrice=visibleText.match(/Current Price\s*\$([\d,]+(?:\.\d{2})?)/i)?.[1]?.replace(/,/g,'');const rawPrice=offer?.price??offer?.lowPrice??(meta('product:price:amount')||visiblePrice);const price=rawPrice===''||rawPrice==null?null:Number(rawPrice);const mainImage=[...html.matchAll(/<img\b[^>]*>/gi)].map(m=>m[0]).find(t=>/alt=["'][^"']*Main, color,/i.test(t));const mainSrc=mainImage?.match(/src=["']([^"']+)["']/i)?.[1];const mainColor=mainImage?.match(/alt=["'][^"']*Main, color, ([^"']+)["']/i)?.[1];const img=Array.isArray(p.image)?p.image[0]:p.image;const h1=html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i)?.[1]?.replace(/<[^>]+>/g,'').trim();const name=text(p.name||meta('og:title')||decode(h1||''),250).replace(/\s*[|–]\s*(J\.Crew|Nordstrom).*$/i,'');return {name,price:Number.isFinite(price)?price:null,currency:offer?.priceCurrency||meta('product:price:currency')||'USD',image:img&&typeof img==='object'?img.url:img||meta('og:image')||decode(mainSrc||''),brand:typeof p.brand==='object'?p.brand.name:p.brand||'',color:p.color||mainColor||u.searchParams.get('color_name')?.replace(/-/g,' ')||'',url,category:u.pathname.includes('sweater')?'Sweaters & Knitwear':u.pathname.includes('jeans')?'Jeans':'Other'}}
@@ -12,6 +13,7 @@ export async function importProduct(s:string){
  let fetchFailed=false;
  let readStatus:number|null=null;
  let renderingError='';
+ const scrapingBeeConfigured=!!config('SCRAPINGBEE_API_KEY');
  const cloudflareConfigured=!!(config('CLOUDFLARE_ACCOUNT_ID')&&config('CLOUDFLARE_BROWSER_TOKEN'));
  const supported=hosts.includes(u.hostname)&&!u.port;
  if(supported){
@@ -29,17 +31,13 @@ export async function importProduct(s:string){
    }
   }catch{fetchFailed=true}
  }
+ if(/we['’]ve noticed some unusual activity|access denied|verify you are human|robot check/i.test(html)){html='';fetchFailed=true;}
  let item=parseProduct(html,original.toString());
- if(supported&&(!item.name||!item.image||item.price===null)&&cloudflareConfigured){
-  try{const page=await cloudflarePage(original.toString(),config('CLOUDFLARE_ACCOUNT_ID'),config('CLOUDFLARE_BROWSER_TOKEN'));item={...item,...mergeProductDetails(item,parseProduct(page,original.toString()))};}
-  catch(e){renderingError=(e as Error).message;}
- }
- if(supported&&(!item.name||!item.image||item.price===null)&&!cloudflareConfigured&&config('SCRAPINGBEE_API_KEY')){
+ if(supported&&(!item.name||!item.image||item.price===null)&&(scrapingBeeConfigured||cloudflareConfigured)){
   try{
-   const endpoint=new URL('https://app.scrapingbee.com/api/v1/');endpoint.searchParams.set('api_key',config('SCRAPINGBEE_API_KEY'));endpoint.searchParams.set('url',original.toString());endpoint.searchParams.set('render_js','true');endpoint.searchParams.set('wait_browser','networkidle2');endpoint.searchParams.set('wait_for','h1');endpoint.searchParams.set('wait','2000');
-   const rendered=await fetch(endpoint,{signal:AbortSignal.timeout(45000)});
-   if(rendered.ok)item={...item,...mergeProductDetails(item,parseProduct((await rendered.text()).slice(0,6000000),original.toString()))};
-  }catch{fetchFailed=true}
+   const page=scrapingBeeConfigured?await scrapingBeePage(original.toString(),config('SCRAPINGBEE_API_KEY')):await cloudflarePage(original.toString(),config('CLOUDFLARE_ACCOUNT_ID'),config('CLOUDFLARE_BROWSER_TOKEN'));
+   item={...item,...mergeProductDetails(item,parseProduct(page,original.toString()))};
+  }catch(e){renderingError=(e as Error).name==='TimeoutError'?'The retailer took too long to load. Try again or enter missing details manually.':(e as Error).message;}
  }
  const complete=!!(item.name&&item.image&&item.price!==null);
  const rendererConfigured=cloudflareConfigured||!!config('SCRAPINGBEE_API_KEY');
