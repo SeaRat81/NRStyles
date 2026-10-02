@@ -23,6 +23,12 @@ assert.equal(ok(await request('state',undefined,client1.cookie)).data.sessions.l
 assert.equal(ok(await request('state',undefined,client2.cookie)).data.sessions.length,0);
 assert.equal((await request('items/choice',{id:item,choice:'now'},client2.cookie)).status,403);
 assert.equal((await request('profile/save',{id:id1,name:'Intruder',profile:{}},client2.cookie)).status,403);
+const address={streetAddress:'123 Main Street',town:'Fairfax',state:'VA',zip:'01234',tops:'Medium'};
+ok(await request('profile/save',{id:id1,name:'Test Client',profile:address},admin));
+const savedProfile=ok(await request('state',undefined,client1.cookie)).data.user.profile;
+for(const [key,value] of Object.entries(address))assert.equal(savedProfile[key],value);
+ok(await request('items/choice',{id:item,choice:'later'},client1.cookie));
+assert.equal(ok(await request('state',undefined,client1.cookie)).data.items[0].choice,'later');
 ok(await request('items/choice',{id:item,choice:'now'},client1.cookie));
 assert.equal(ok(await request('state',undefined,admin)).data.items[0].choice,'now');assert.equal(ok(await request('state',undefined,admin)).data.items[0].price,138.5);
 assert.equal((await request('items/save',{sessionId:session,name:'Missing price',price:'',url:'https://www.jcrew.com/p/CX424'},admin)).status,400);
