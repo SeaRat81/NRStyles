@@ -52,3 +52,13 @@ button[data-slot="select-trigger"]{background:white;color:#5b6b7b;font-weight:40
 .notification-card small{display:block;color:#66788b}
 .notification-card button{margin-top:4px;max-width:100%;white-space:normal}
 .notifications-read{align-self:flex-start;margin-top:4px}
+/* Give phone and tablet controls enough room for a finger tap. */
+@media(max-width:900px){
+ button,a.button,[data-slot="tabs-trigger"],[data-slot="select-trigger"]{min-height:44px}
+ button.icon-button,button[data-slot="sidebar-trigger"],button[data-slot="dialog-close"],button[data-slot="sheet-close"]{min-width:44px;min-height:44px}
+ [data-slot="tabs-list"]{height:auto;flex-wrap:wrap;max-width:100%}
+ [data-slot="select-trigger"]{font-size:16px}
+ .row-actions,.modal-actions,.session-meta{flex-wrap:wrap}
+ .card,.message,.product,.shopping-item{overflow-wrap:anywhere}
+ .dialog-content{max-height:calc(100dvh - 2rem)}
+}
