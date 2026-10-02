@@ -31,3 +31,10 @@ button[data-slot="select-trigger"]{background:white;color:#5b6b7b;font-weight:40
 /* The shared .grid utility must not split dialog headers and forms into columns. */
 .dialog-content{grid-template-columns:minmax(0,1fr)}
 .dialog-content>form{width:100%}
+
+/* Keep sidebar labels readable against their blue button background. */
+.nr-sidebar [data-slot="sidebar-menu-button"]{background:#315b7d;color:#f8fbff;font-weight:500}
+.nr-sidebar [data-slot="sidebar-menu-button"]:hover{background:#254760;color:#fff}
+.nr-sidebar [data-slot="sidebar-menu-button"][data-active="true"]{background:#254760;color:#fff;box-shadow:inset 3px 0 0 #8db5d4}
+.item-status .purchase-status{display:block;color:#315b7d;font-size:14px;font-weight:600;line-height:1.6;padding:0;margin:0;background:none}
+.item-status p,.item-status .retailer-link{padding-left:0;margin-left:0}
